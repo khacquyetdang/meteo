@@ -1,5 +1,6 @@
 package meteo.dang.com.meteo;
 
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.support.v4.app.Fragment;
 import android.os.Bundle;
@@ -9,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
@@ -24,6 +26,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -31,15 +35,8 @@ import java.util.ArrayList;
 public class ForecastFragment extends Fragment {
     private final String LOG_TAG = ForecastFragment.class.getSimpleName();
 
-    private String[] forecastentry = {"Today - Sunny - 88/63",
-            "Tomorrow - Sunny - 88/63",
-            "Weds - Sunny - 88/63",
-            "Thursday - Sunny - 88/63",
-            "Friday - Rainy - 60/53",
-            "Saturday - Foggy - 70/63",
-            "Sunday - Sunny - 90/63"
-    };
     private ArrayAdapter<String> forecastlistadaptateur;
+    private ArrayList<String> forecastlistdata;
     private ListView listView;
 
     public ForecastFragment() {
@@ -57,8 +54,22 @@ public class ForecastFragment extends Fragment {
             case R.id.action_refresh:
                 new FetchWeatherTask().execute();
                 break;
+            //noinspection SimplifiableIfStatement
+            case R.id.action_settings:
+                /*Intent settingIntent = new Intent(getActivity(), SettingsActivity.class);
+                startActivity(settingIntent);
+                */
+                return true;
+
+
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        new FetchWeatherTask().execute();
     }
 
     @Override
@@ -66,24 +77,37 @@ public class ForecastFragment extends Fragment {
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
         listView = (ListView) rootView.findViewById(R.id.listview_forecast);
-        forecastlistadaptateur = new ArrayAdapter<>(getContext(), R.layout.list_item_forecast, forecastentry);
+        forecastlistdata = new ArrayList<>();
+        forecastlistadaptateur = new ArrayAdapter<>(getContext(), R.layout.list_item_forecast, forecastlistdata);
         listView.setAdapter(forecastlistadaptateur);
+
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+
+                String foreCast = forecastlistdata.get(i);
+                Intent detailIntent = new Intent(getActivity(), DetailActivity.class);
+                detailIntent.putExtra(Intent.EXTRA_TEXT, foreCast);
+                startActivity(detailIntent);
+            }
+        });
         return rootView;
     }
     public void updatedData(String[] itemsArrayList) {
 
-        forecastlistadaptateur.clear();
+        try {
+            forecastlistdata.clear();
 
-        if (itemsArrayList != null){
-
-            for (String weather_data : itemsArrayList) {
-
-                forecastlistadaptateur.insert(weather_data, forecastlistadaptateur.getCount());
+            if (itemsArrayList != null) {
+                Collections.addAll(forecastlistdata, itemsArrayList);
             }
+            forecastlistadaptateur.notifyDataSetChanged();
+
         }
-
-        forecastlistadaptateur.notifyDataSetChanged();
-
+        catch (Exception e)
+        {
+            Log.e(LOG_TAG, e.getMessage());
+        }
     }
 
     public class FetchWeatherTask extends AsyncTask<Void, Void, String[]> {
@@ -265,7 +289,6 @@ public class ForecastFragment extends Fragment {
 
         @Override
         protected void onPostExecute(String[] result) {
-            forecastentry = result;
             updatedData(result);
             super.onPostExecute(result);
         }
