@@ -1,14 +1,23 @@
 package meteo.dang.com.meteo;
 
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -24,20 +33,43 @@ import java.util.ArrayList;
  */
 public class ForecastFragment extends Fragment {
 
-    private String[] forecastentry = {"Today - Sunny - 88/63",
-            "Tomorrow - Sunny - 88/63",
-            "Weds - Sunny - 88/63",
-            "Thursday - Sunny - 88/63",
-            "Friday - Rainy - 60/53",
-            "Saturday - Foggy - 70/63",
-            "Sunday - Sunny - 90/63"
-    };
+    private ArrayList<String> forecastentry;
     private ArrayAdapter<String> forecastlistadaptateur;
     private ListView listView;
+
     public ForecastFragment() {
         // constructor
         super();
-        new FetchWeatherTask().execute();
+        setHasOptionsMenu(true);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        updateWeather();
+        //getWethearData("94043");
+    }
+
+    private void updateWeather() {
+        if (getActivity() != null) {
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+            String location = prefs.getString(getString(R.string.pref_location_key),
+                    getString(R.string.pref_location_default_value));
+            new FetchWeatherTask().execute(location);
+        }
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+        if (id == R.id.action_refresh) {
+            updateWeather();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -45,28 +77,62 @@ public class ForecastFragment extends Fragment {
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
         listView = (ListView) rootView.findViewById(R.id.listview_forecast);
+        forecastentry = new ArrayList<String>();
         forecastlistadaptateur = new ArrayAdapter<>(getContext(), R.layout.list_item_forecast, forecastentry);
-
 
         listView.setAdapter(forecastlistadaptateur);
         return rootView;
     }
 
-    private void getWethearData()
-    {
-    // These two need to be declared outside the try/catch
-    // so that they can be closed in the finally block.
+    private void updateData(String foreCastJson) {
+        try {
+            forecastentry.clear();
+            JSONObject jsonObject = new JSONObject(foreCastJson);
+            JSONArray foreCastList = jsonObject.getJSONArray("list");
+            for (int i = 0; i < foreCastList.length(); i++) {
+                forecastentry.add(foreCastList.getString(i));
+            }
+            forecastlistadaptateur.notifyDataSetChanged();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String getWethearData(String location) {
+        // These two need to be declared outside the try/catch
+        // so that they can be closed in the finally block.
         HttpURLConnection urlConnection = null;
         BufferedReader reader = null;
 
-    // Will contain the raw JSON response as a string.
+        // Will contain the raw JSON response as a string.
         String forecastJsonStr = null;
 
         try {
             // Construct the URL for the OpenWeatherMap query
             // Possible parameters are available at OWM's forecast API page, at
             // http://openweathermap.org/API#forecast
-            URL url = new URL("http://api.openweathermap.org/data/2.5/forecast/daily?q=94043&mode=json&units=metric&cnt=7");
+
+            Uri.Builder builder = new Uri.Builder();
+
+            final String FORMAT_PARAM = "mode";
+            final String UNITS_PARAM = "units";
+            final String DAYS_PARAM = "cnt";
+            final String APPID_PARAM = "APPID";
+
+            //http://api.openweathermap.org/data/2.5/forecast/daily?q=94043&mode=json&units=metric&cnt=7
+            builder.scheme("http")
+                    .authority("api.openweathermap.org")
+                    .appendPath("data")
+                    .appendPath("2.5")
+                    .appendPath("forecast")
+                    .appendPath("daily")
+                    .appendQueryParameter("q", location)
+                    .appendQueryParameter(FORMAT_PARAM, "json")
+                    .appendQueryParameter(UNITS_PARAM, "metric")
+                    .appendQueryParameter(DAYS_PARAM, "7")
+                    .appendQueryParameter(APPID_PARAM, BuildConfig.OPEN_WEATHER_MAP_API_KEY);
+
+            URL url = new URL(builder.toString());
 
             // Create the request to OpenWeatherMap, and open the connection
             urlConnection = (HttpURLConnection) url.openConnection();
@@ -95,8 +161,7 @@ public class ForecastFragment extends Fragment {
                 forecastJsonStr = null;
             }
             forecastJsonStr = buffer.toString();
-        } catch (FileNotFoundException e)
-        {
+        } catch (FileNotFoundException e) {
             Log.e("PlaceholderFragment", "Error ", e);
             // If the code didn't successfully get the weather data, there's no point in attempting
             // to parse it.
@@ -106,7 +171,7 @@ public class ForecastFragment extends Fragment {
             // If the code didn't successfully get the weather data, there's no point in attempting
             // to parse it.
             forecastJsonStr = null;
-        } finally{
+        } finally {
             if (urlConnection != null) {
                 urlConnection.disconnect();
             }
@@ -118,16 +183,24 @@ public class ForecastFragment extends Fragment {
                 }
             }
         }
+        return forecastJsonStr;
     }
 
-    public class FetchWeatherTask extends AsyncTask<String, Void, Void> {
+    private class FetchWeatherTask extends AsyncTask<String, Void, String> {
 
         private final String LOG_TAG = FetchWeatherTask.class.getSimpleName();
+
         @Override
-        protected Void doInBackground(String ... params) {
+        protected String doInBackground(String... params) {
             String location = params[0];
-            getWethearData();
-            return null;
+            String result = getWethearData(location);
+            return result;
+        }
+
+        @Override
+        protected void onPostExecute(String forecastJson) {
+            super.onPostExecute(forecastJson);
+            updateData(forecastJson);
         }
     }
 }
