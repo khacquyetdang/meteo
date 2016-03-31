@@ -8,6 +8,13 @@
     <string name="pref_location_key" translatable="false">location</string>
     <string name="pref_location_label">Location</string>
 
+    <string name="pref_unit_label">Temperature Units</string>
+    <string name="pref_unit_key">temperature</string>
+    <string name="pref_units_metric">Metric</string>
+    <string name="pref_units_imperial">Imperial</string>
+
+
+
     <string name="title_activity_setting">SettingActivity</string>
 
     <!-- TODO: Remove or change this placeholder text -->

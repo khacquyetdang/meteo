@@ -8,14 +8,14 @@
         android:inputType="text"
         android:key="@string/pref_location_key"
         android:singleLine="true"
-        android:title="@string/pref_location_label" />
-    <!-- <ListPreference
-        android:defaultValue="-1"
-        android:entries="@array/pref_example_list_titles"
-        android:entryValues="@array/pref_example_list_values"
-        android:key="example_list"
+        android:title="@string/pref_location_label"
+        android:summary="@string/pref_location_default_value"/>
+    <ListPreference
+        android:entries="@array/pref_units_options"
+        android:entryValues="@array/pref_units_values"
+        android:defaultValue="@string/pref_units_metric"
+        android:key="@string/pref_unit_key"
         android:negativeButtonText="@null"
         android:positiveButtonText="@null"
-        android:title="@string/pref_title_add_friends_to_messages" />
-    -->
+        android:title="@string/pref_unit_label" />
 </PreferenceScreen>
